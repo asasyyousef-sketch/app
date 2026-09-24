@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>بث مباشر</title>
+<style>
+:root{--bg:#000;--panel:rgba(22,22,28,.95);--fg:#fff;--acc:#1e88e5;--red:#e53935;--green:#43a047;--muted:#9aa0a6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#stage{position:fixed;top:0;left:0;right:0;bottom:0}
+#cv{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#top{position:fixed;top:0;left:0;right:0;padding:calc(8px + env(safe-area-inset-top)) 12px 18px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,0));font-size:13px;pointer-events:none}
+#top .grp{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pill{background:rgba(255,255,255,.14);border-radius:14px;padding:3px 10px;white-space:nowrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);margin-left:6px}
+.dot.live{background:var(--red);animation:blink 1.2s infinite}
+.dot.wait{background:#fb8c00}
+@keyframes blink{50%{opacity:.25}}
+#ovl{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:18px;pointer-events:none;padding:20px;text-shadow:0 1px 6px #000}
+#ovl.hide{display:none}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:10px 8px calc(10px + env(safe-area-inset-bottom));display:flex;gap:6px;justify-content:center;flex-wrap:wrap;background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.8))}
+button,select{font:inherit;color:var(--fg)}
+.tb{background:rgba(255,255,255,.16);border:0;border-radius:12px;min-width:56px;padding:7px 8px;font-size:20px;line-height:1.1;cursor:pointer}
+.tb span{display:block;font-size:10px;margin-top:2px;opacity:.85}
+.tb.on{background:var(--acc)}
+.tb.rec{background:var(--red)}
+.tb:disabled{opacity:.4}
+#sel{position:fixed;border:2px dashed #ffeb3b;background:rgba(255,235,59,.12);display:none;pointer-events:none}
+#ring{position:fixed;width:64px;height:64px;margin:-32px 0 0 -32px;border:2px solid #4fc3f7;border-radius:50%;pointer-events:none;opacity:0}
+#ring.go{animation:ring .9s ease-out}
+@keyframes ring{0%{opacity:1;transform:scale(1.6)}60%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:rgba(0,0,0,.85);padding:8px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%;text-align:center}
+#toast.show{opacity:1}
+#panel{position:fixed;left:0;right:0;bottom:0;max-height:68vh;overflow:auto;touch-action:pan-y;background:var(--panel);border-radius:18px 18px 0 0;padding:14px 14px calc(90px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s;z-index:5}
+#panel.open{transform:none}
+#panel h4{margin:14px 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+#panel h4:first-child{margin-top:0}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{background:rgba(255,255,255,.14);border:0;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+.chip.on{background:var(--acc)}
+.chip:disabled{opacity:.35}
+select{background:#2b2b33;border:0;border-radius:10px;padding:8px 10px;font-size:14px;max-width:100%}
+input[type=range]{flex:1;min-width:140px;touch-action:none;accent-color:var(--acc)}
+.small{font-size:12px;color:var(--muted)}
+.adm{display:none}
+body.is-admin .adm{display:inline-block}
+body.is-admin #panel .adm{display:block}
+#vlist{font-size:12px;color:var(--muted);word-break:break-all}
+
+/* الاستوديو (DVR) */
+#studio{position:fixed;inset:0;background:#000;z-index:30;display:none;flex-direction:column}
+#studio.open{display:flex}
+#stTop{display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) 12px 8px;gap:8px}
+#stTitle{font-size:13px;color:var(--muted)}
+#stClose{background:rgba(255,255,255,.16);border:0;color:var(--fg);border-radius:10px;padding:8px 14px;font-size:14px}
+#stVideoWrap{flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0}
+#stVideo{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain}
+#stEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:14px}
+#stTimeline{padding:6px 12px;display:flex;align-items:center;gap:8px}
+#stBar{direction:ltr;flex:1;height:34px;background:rgba(255,255,255,.12);border-radius:8px;position:relative;touch-action:none;cursor:pointer}
+#stPlayed{position:absolute;top:0;bottom:0;left:0;width:0%;background:rgba(30,136,229,.55);border-radius:8px;pointer-events:none}
+#stHandle{position:absolute;top:-4px;left:0%;width:14px;height:42px;background:#fff;border-radius:4px;transform:translateX(-50%);pointer-events:none}
+#stCtrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;padding:4px 10px}
+#stCtrl button{background:rgba(255,255,255,.16);border:0;color:var(--fg);border-radius:10px;padding:8px 10px;font-size:15px;cursor:pointer}
+#stCtrl button.on{background:var(--acc)}
+#stCtrl select{background:#2b2b33;border:0;border-radius:10px;padding:8px;font-size:13px;color:var(--fg)}
+#stTimeLbl{font-size:12px;color:var(--muted);min-width:56px;text-align:center}
+#stVol{width:80px}
+#stSettings{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;padding:6px 12px calc(10px + env(safe-area-inset-bottom));font-size:12px;color:var(--muted)}
+#stSettings select{background:#2b2b33;border:0;border-radius:8px;padding:4px 6px;font-size:12px;color:var(--fg)}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+
+<div id="top">
+  <div class="grp">
+    <span class="pill"><span class="dot" id="dot"></span><span id="stTxt">جارٍ الاتصال</span></span>
+    <span class="pill">&#128065; <b id="nView">-</b></span>
+  </div>
+  <div class="grp">
+    <span class="pill" id="resTxt">-</span>
+    <span class="pill" id="zoomTxt">&times;1.0</span>
+  </div>
+</div>
+
+<div id="ovl"><div id="ovlTxt">جارٍ الاتصال بالبث...</div></div>
+<div id="sel"></div>
+<div id="ring"></div>
+<div id="toast"></div>
+
+<div id="panel">
+  <h4>الكاميرا / العدسة</h4>
+  <div class="row"><select id="selCam"></select></div>
+  <div class="row" id="presets" style="margin-top:8px"></div>
+  <div class="row" style="margin-top:8px">
+    <span class="small">زووم الكاميرا</span>
+    <input type="range" id="camZoom" min="1" max="10" step="0.05" value="1">
+    <span id="camZoomTxt" class="small">1.0x</span>
+  </div>
+
+  <h4>الفلاش</h4>
+  <div class="row"><button class="chip" id="bTorch">&#128294; تشغيل الفلاش</button></div>
+
+  <h4>الفوكس</h4>
+  <div class="row">
+    <button class="chip on" id="fAuto">تلقائي</button>
+    <button class="chip" id="fMan">يدوي</button>
+    <button class="chip" id="fTap">&#127919; الفوكس بالنقر على الصورة</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <span class="small">بعيد</span>
+    <input type="range" id="fDist" min="0" max="1" step="0.01" value="0" disabled>
+    <span class="small">قريب</span>
+  </div>
+
+  <h4>جودة البث</h4>
+  <div class="row"><select id="selQ"></select></div>
+
+  <h4>التحدث عبر الهاتف</h4>
+  <div class="row"><button class="chip" id="bTalk">&#127908; ابدأ التحدث</button></div>
+  <div class="small" id="talkHint" style="margin-top:6px">استخدم سماعات لتجنب صدى الصوت عند الاستماع والتحدث معاً.</div>
+
+  <h4>المتصلون الآن</h4>
+  <div id="vlist">-</div>
+</div>
+
+<div id="studio">
+  <div id="stTop">
+    <div id="stTitle">الاستوديو — سجل آخر <span id="stWinLbl">5</span> دقائق</div>
+    <button id="stClose">إغلاق &times;</button>
+  </div>
+  <div id="stVideoWrap">
+    <video id="stVideo" playsinline webkit-playsinline></video>
+    <div id="stEmpty">لا يوجد سجل بعد — فعّل "السجل المؤقت" أدناه وانتظر قليلاً حتى يتجمّع</div>
+  </div>
+  <div id="stTimeline">
+    <span id="stTimeLbl">مباشر</span>
+    <div id="stBar"><div id="stPlayed"></div><div id="stHandle"></div></div>
+  </div>
+  <div id="stCtrl">
+    <button id="stPlay">&#9654;</button>
+    <button id="stBack">&#9198; 10</button>
+    <button id="stFwd">10 &#9197;</button>
+    <button id="stLiveBtn">&#128308; مباشر</button>
+    <select id="stSpeed">
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="1.5">1.5x</option>
+      <option value="2">2x</option>
+    </select>
+    <button id="stMute">&#128266;</button>
+    <input type="range" id="stVol" min="0" max="1" step="0.05" value="1">
+    <button id="stDl">&#8681; تنزيل المقطع</button>
+    <button id="stPip">&#9974; عائم</button>
+    <button id="stFs">&#9974; ملء</button>
+  </div>
+  <div id="stSettings">
+    <label><input type="checkbox" id="stDvrOn"> تفعيل السجل المؤقت</label>
+    <span>المدة:</span>
+    <select id="stDvrMin">
+      <option value="1">1 دقيقة</option>
+      <option value="3">3 دقائق</option>
+      <option value="5" selected>5 دقائق</option>
+      <option value="10">10 دقائق</option>
+    </select>
+    <span id="stAvail">المتاح: 0:00</span>
+  </div>
+</div>
+
+<div id="bar">
+  <button class="tb" id="bAudio">&#128266;<span>استماع</span></button>
+  <button class="tb" id="bRec">&#9210;<span>تسجيل</span></button>
+  <button class="tb" id="bStudio">&#127909;<span>استوديو</span></button>
+  <button class="tb" id="bShot">&#128247;<span>لقطة</span></button>
+  <button class="tb" id="bZin">&#10133;<span>تكبير</span></button>
+  <button class="tb" id="bZout">&#10134;<span>تصغير</span></button>
+  <button class="tb" id="bBox">&#11036;<span>منطقة</span></button>
+  <button class="tb" id="bZreset">&#10227;<span>أصلي</span></button>
+  <button class="tb" id="bFs">&#9974;<span>ملء</span></button>
+  <button class="tb adm" id="bAdm">&#9881;<span>تحكم</span></button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var q = location.search;
+function qs(extra){ return q ? q + '&' + extra : '?' + extra; }
+function $(id){ return document.getElementById(id); }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+/* ---------- الرسم والتكبير ---------- */
+var cv = $('cv'), ctx = cv.getContext('2d');
+var bmp = null, rot = 0, bw = 0, bh = 0, zoom = 1, cx = 0.5, cy = 0.5, dirty = true, dpr = 1;
+
+function resize(){
+  dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(cv.clientWidth * dpr);
+  cv.height = Math.round(cv.clientHeight * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  dirty = true;
+}
+window.addEventListener('resize', resize); resize();
+
+function layout(){
+  var W = cv.clientWidth, H = cv.clientHeight;
+  var base = bw ? Math.min(W/bw, H/bh) : 1;
+  var s = base * zoom;
+  return {W:W, H:H, base:base, s:s, dw:bw*s, dh:bh*s};
+}
+function clampCenter(){
+  if(!bw) return;
+  var L = layout();
+  cx = (L.dw <= L.W) ? 0.5 : clamp(cx, (L.W/2)/L.dw, 1-(L.W/2)/L.dw);
+  cy = (L.dh <= L.H) ? 0.5 : clamp(cy, (L.H/2)/L.dh, 1-(L.H/2)/L.dh);
+}
+function toImg(px,py){
+  var L = layout();
+  return {u:(px-(L.W/2-cx*L.dw))/L.dw, v:(py-(L.H/2-cy*L.dh))/L.dh};
+}
+function zoomAt(px,py,nz){
+  if(!bw) return;
+  nz = clamp(nz, 1, 20);
+  var p = toImg(px,py);
+  zoom = nz;
+  var L = layout();
+  cx = p.u - (px-L.W/2)/L.dw;
+  cy = p.v - (py-L.H/2)/L.dh;
+  clampCenter(); upd();
+}
+function panBy(dx,dy){
+  if(!bw) return;
+  var L = layout();
+  cx -= dx/L.dw; cy -= dy/L.dh;
+  clampCenter(); upd();
+}
+function resetView(){ zoom = 1; cx = 0.5; cy = 0.5; upd(); }
+function upd(){ dirty = true; $('zoomTxt').textContent = '\u00d7' + zoom.toFixed(1); }
+
+/* الصورة تصل خام من الهاتف مع زاوية الدوران، والتدوير يتم هنا في المتصفح (أخف على الهاتف) */
+function drawBmp(g, x, y, w, h){
+  if(rot === 0){ g.drawImage(bmp, x, y, w, h); return; }
+  g.save();
+  g.translate(x + w/2, y + h/2);
+  g.rotate(rot * Math.PI / 180);
+  if(rot === 180) g.drawImage(bmp, -w/2, -h/2, w, h);
+  else g.drawImage(bmp, -h/2, -w/2, h, w);
+  g.restore();
+}
+function draw(){
+  var L = layout();
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,L.W,L.H);
+  if(!bmp) return;
+  ctx.imageSmoothingQuality = 'high';
+  drawBmp(ctx, L.W/2-cx*L.dw, L.H/2-cy*L.dh, L.dw, L.dh);
+}
+(function loop(){ if(dirty){ dirty = false; draw(); } requestAnimationFrame(loop); })();
+
+/* ---------- استقبال البث (يعيد الاتصال تلقائياً) ---------- */
+var connected = false, serverUp = true, lastFrameT = 0, ctrl = null;
+var decoding = false, pendingJpeg = null, pendingRot = 0;
+var dec = new TextDecoder('latin1');
+
+function onJpeg(j, r){
+  lastFrameT = performance.now();
+  if(decoding){ pendingJpeg = j; pendingRot = r; return; }   // نتخطى الصور القديمة دائماً: الأحدث فقط
+  decode(j, r);
+}
+function decode(j, r){
+  decoding = true;
+  createImageBitmap(new Blob([j], {type:'image/jpeg'})).then(function(b){
+    if(bmp && bmp.close) bmp.close();
+    bmp = b; rot = r;
+    var w = (r % 180 === 0) ? b.width : b.height, h = (r % 180 === 0) ? b.height : b.width;
+    if(bw !== w || bh !== h){ bw = w; bh = h; clampCenter(); }
+    dirty = true; recFrame(); dvrFrame();
+  }).catch(function(){}).then(function(){
+    decoding = false;
+    if(pendingJpeg){ var p = pendingJpeg, pr = pendingRot; pendingJpeg = null; decode(p, pr); }
+  });
+}
+function headerEnd(buf,len){
+  var lim = Math.min(len-3, 400);
+  for(var i=0;i<lim;i++){
+    if(buf[i]===13 && buf[i+1]===10 && buf[i+2]===13 && buf[i+3]===10) return i;
+  }
+  return -1;
+}
+async function streamLoop(){
+  while(true){
+    try{
+      ctrl = new AbortController();
+      var r = await fetch('/stream' + qs('t=' + Date.now()), {signal: ctrl.signal, cache:'no-store'});
+      if(!r.ok) throw new Error('http ' + r.status);
+      connected = true; lastFrameT = performance.now();
+      var reader = r.body.getReader();
+      var buf = new Uint8Array(1<<20), len = 0;
+      while(true){
+        var x = await reader.read();
+        if(x.done) break;
+        var v = x.value;
+        if(len + v.length > buf.length){
+          var nb = new Uint8Array(Math.max(buf.length*2, len + v.length));
+          nb.set(buf.subarray(0,len)); buf = nb;
+        }
+        buf.set(v, len); len += v.length;
+        while(true){
+          var he = headerEnd(buf,len);
+          if(he < 0) break;
+          var head = dec.decode(buf.subarray(0,he));
+          var m = /Content-Length:\s*(\d+)/i.exec(head);
+          if(!m){ len = 0; break; }
+          var total = he + 4 + parseInt(m[1],10);
+          if(len < total) break;
+          var rm = /X-Rot:\s*(\d+)/i.exec(head);
+          onJpeg(buf.slice(he+4, total), rm ? parseInt(rm[1],10) : 0);
+          buf.copyWithin(0, total, len); len -= total;
+        }
+      }
+    }catch(e){}
+    connected = false;
+    await sleep(1500);
+  }
+}
+setInterval(function(){
+  if(connected && performance.now() - lastFrameT > 5000 && ctrl){ try{ ctrl.abort(); }catch(e){} }
+}, 1000);
+streamLoop();
+
+/* ---------- حالة الاتصال والمعلومات ---------- */
+var status = {}, isAdmin = false;
+function isLive(){ return connected && performance.now() - lastFrameT < 3000; }
+setInterval(function(){
+  var live = isLive();
+  $('dot').className = 'dot ' + (live ? 'live' : (serverUp ? 'wait' : ''));
+  $('stTxt').textContent = live ? 'بث مباشر' : (serverUp ? 'جارٍ الاتصال...' : 'البث متوقف');
+  var ov = $('ovl');
+  if(live){ ov.classList.add('hide'); }
+  else{
+    ov.classList.remove('hide');
+    var t;
+    if(!serverUp) t = '\u23f8 البث متوقف الآن — سيعود تلقائياً عند تشغيله، لا داعي لتحديث الصفحة';
+    else if(status.live === false) t = 'الكاميرا غير جاهزة على الهاتف' + (status.error ? ' (' + status.error + ')' : '') + ' — تتم إعادة المحاولة تلقائياً';
+    else if(status.frameAge > 4000) t = 'الكاميرا توقفت عن إرسال الصور منذ ' + Math.round(status.frameAge/1000) + ' ث — يجري إصلاحها تلقائياً';
+    else t = 'جارٍ الاتصال بالبث...';
+    $('ovlTxt').textContent = t;
+  }
+}, 500);
+
+function poll(){
+  fetch('/status' + qs('t=' + Date.now()), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+    serverUp = true; status = j;
+    $('nView').textContent = j.viewers;
+    if(j.width) $('resTxt').textContent = j.width + 'x' + j.height + ' \u2022 ' + j.fps + 'fps';
+    isAdmin = !!j.admin;
+    document.body.classList.toggle('is-admin', isAdmin);
+    if(isAdmin) updateAdmin(j);
+  }).catch(function(){ serverUp = false; });
+}
+setInterval(poll, 1500); poll();
+
+/* ---------- إشعارات صغيرة ---------- */
+var toastT = null;
+function toast(t){
+  var e = $('toast'); e.textContent = t; e.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(function(){ e.classList.remove('show'); }, 2600);
+}
+
+/* ---------- اللمس والماوس: تكبير / سحب / منطقة / فوكس ---------- */
+var ptrs = {}, pinch = null, downT = 0, downX = 0, downY = 0, moved = false, lastTap = 0, lastTapX = 0, lastTapY = 0;
+var boxMode = false, selStart = null, tapFocus = false;
+
+function cnt(){ return Object.keys(ptrs).length; }
+function pinchInfo(){
+  var k = Object.keys(ptrs), a = ptrs[k[0]], b = ptrs[k[1]];
+  return {d: Math.hypot(a.x-b.x, a.y-b.y) || 1, mx: (a.x+b.x)/2, my: (a.y+b.y)/2};
+}
+function showSel(x1,y1,x2,y2){
+  var s = $('sel');
+  s.style.display = 'block';
+  s.style.left = Math.min(x1,x2) + 'px'; s.style.top = Math.min(y1,y2) + 'px';
+  s.style.width = Math.abs(x2-x1) + 'px'; s.style.height = Math.abs(y2-y1) + 'px';
+}
+function zoomToRect(x1,y1,x2,y2){
+  if(!bw) return;
+  var a = toImg(x1,y1), b = toImg(x2,y2), L = layout();
+  var rw = Math.abs(b.u-a.u), rh = Math.abs(b.v-a.v);
+  if(rw < 0.005 || rh < 0.005) return;
+  zoom = clamp(Math.min(L.W/(rw*bw), L.H/(rh*bh)) / L.base, 1, 20);
+  cx = (a.u+b.u)/2; cy = (a.v+b.v)/2;
+  clampCenter(); upd();
+}
+
+cv.addEventListener('pointerdown', function(e){
+  try{ cv.setPointerCapture(e.pointerId); }catch(x){}
+  ptrs[e.pointerId] = {x:e.clientX, y:e.clientY};
+  var n = cnt();
+  if(n === 1){
+    downT = Date.now(); downX = e.clientX; downY = e.clientY; moved = false;
+    if(boxMode){ selStart = {x:e.clientX, y:e.clientY}; showSel(e.clientX,e.clientY,e.clientX,e.clientY); }
+  }else if(n === 2){ pinch = pinchInfo(); moved = true; }
+});
+cv.addEventListener('pointermove', function(e){
+  var p = ptrs[e.pointerId];
+  if(!p) return;
+  var dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  var n = cnt();
+  if(n >= 2 && pinch){
+    var pi = pinchInfo();
+    panBy(pi.mx - pinch.mx, pi.my - pinch.my);
+    zoomAt(pi.mx, pi.my, zoom * pi.d / pinch.d);
+    pinch = pi;
+  }else if(n === 1){
+    if(Math.hypot(e.clientX-downX, e.clientY-downY) > 6) moved = true;
+    if(boxMode && selStart){ showSel(selStart.x, selStart.y, e.clientX, e.clientY); }
+    else if(moved){ panBy(dx, dy); }
+  }
+});
+function endPtr(e, cancel){
+  var n = cnt();
+  if(!ptrs[e.pointerId]) return;
+  if(n === 1){
+    if(boxMode && selStart){
+      zoomToRect(selStart.x, selStart.y, e.clientX, e.clientY);
+      selStart = null; $('sel').style.display = 'none';
+      boxMode = false; $('bBox').classList.remove('on');
+    }else if(!cancel && !moved && Date.now() - downT < 350){
+      var now = Date.now();
+      if(now - lastTap < 320 && Math.hypot(e.clientX-lastTapX, e.clientY-lastTapY) < 40){
+        if(zoom > 1.05) resetView(); else zoomAt(e.clientX, e.clientY, 2.5);
+        lastTap = 0;
+      }else{
+        lastTap = now; lastTapX = e.clientX; lastTapY = e.clientY;
+        if(isAdmin && tapFocus) doFocus(e.clientX, e.clientY);
+      }
+    }
+  }
+  delete ptrs[e.pointerId];
+  if(cnt() < 2) pinch = null;
+}
+cv.addEventListener('pointerup', function(e){ endPtr(e,false); });
+cv.addEventListener('pointercancel', function(e){ endPtr(e,true); });
+cv.addEventListener('wheel', function(e){
+  e.preventDefault();
+  zoomAt(e.clientX, e.clientY, zoom * (e.deltaY < 0 ? 1.18 : 1/1.18));
+}, {passive:false});
+
+$('bZin').onclick = function(){ zoomAt(cv.clientWidth/2, cv.clientHeight/2, zoom*1.4); };
+$('bZout').onclick = function(){ zoomAt(cv.clientWidth/2, cv.clientHeight/2, zoom/1.4); };
+$('bZreset').onclick = resetView;
+$('bBox').onclick = function(){
+  boxMode = !boxMode; this.classList.toggle('on', boxMode);
+  if(boxMode) toast('اسحب مربعاً حول المكان الذي تريد تكبيره');
+};
+$('bFs').onclick = function(){
+  var d = document.documentElement;
+  if(document.fullscreenElement){ document.exitFullscreen(); }
+  else if(d.requestFullscreen){ d.requestFullscreen(); }
+  else toast('المتصفح لا يدعم ملء الشاشة');
+};
+
+/* ---------- الصوت (استماع) ---------- */
+var actx = null, tap = null, monitor = null, recDest = null;
+var listening = false, recording = false, audioOn = false, audioCtrl = null, nextT = 0;
+
+function ensureCtx(){
+  if(!actx){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    actx = new AC();
+    tap = actx.createGain();
+    monitor = actx.createGain(); monitor.gain.value = 0;
+    tap.connect(monitor); monitor.connect(actx.destination);
+  }
+  if(actx.state === 'suspended') actx.resume();
+}
+function playPcm(v){
+  var c = new Uint8Array(v);
+  var s = new Int16Array(c.buffer);
+  var f = new Float32Array(s.length);
+  for(var i=0;i<s.length;i++) f[i] = s[i] / 32768;
+  var b = actx.createBuffer(1, f.length, 16000);
+  b.getChannelData(0).set(f);
+  var src = actx.createBufferSource();
+  src.buffer = b; src.connect(tap);
+  var now = actx.currentTime;
+  if(nextT < now + 0.03 || nextT > now + 0.7) nextT = now + 0.1;
+  src.start(nextT); nextT += b.duration;
+}
+async function audioLoop(){
+  if(audioOn) return;
+  audioOn = true;
+  while(audioOn){
+    try{
+      audioCtrl = new AbortController();
+      var r = await fetch('/audio' + qs('t=' + Date.now()), {signal: audioCtrl.signal, cache:'no-store'});
+      if(!r.ok) throw new Error('audio');
+      var rd = r.body.getReader(), odd = -1;
+      nextT = 0;
+      while(audioOn){
+        var x = await rd.read();
+        if(x.done) break;
+        var v = x.value;
+        if(odd >= 0){ var t = new Uint8Array(v.length + 1); t[0] = odd; t.set(v,1); v = t; odd = -1; }
+        if(v.length & 1){ odd = v[v.length-1]; v = v.subarray(0, v.length-1); }
+        if(v.length) playPcm(v);
+      }
+    }catch(e){}
+    if(audioOn) await sleep(1500);
+  }
+}
+function wantAudio(){
+  if(listening || recording || dvrOn) audioLoop();
+  else{ audioOn = false; if(audioCtrl){ try{ audioCtrl.abort(); }catch(e){} } }
+}
+$('bAudio').onclick = function(){
+  ensureCtx();
+  listening = !listening;
+  monitor.gain.value = listening ? 1 : 0;
+  this.classList.toggle('on', listening);
+  wantAudio();
+  toast(listening ? 'الاستماع مفعّل' : 'تم كتم الصوت');
+};
+// أول لمسة على الصفحة "تفتح" الصوت في المتصفح (سياسات المتصفحات تمنع الصوت التلقائي بدون تفاعل)،
+// هذا يحسّن فرصة أن يلتقط السجل المؤقت الصوت من بداية المشاهدة.
+window.addEventListener('pointerdown', function unlock(){
+  try{ ensureCtx(); }catch(e){}
+  window.removeEventListener('pointerdown', unlock);
+}, {once:true});
+
+/* ---------- التسجيل (يُحفظ على جهازك أنت) ---------- */
+var rec = null, recChunks = [], recCanvas = null, rctx = null, recT0 = 0, recTimer = null;
+function stamp(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'') + n; };
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+function download(blob, name){
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+}
+function recFrame(){
+  if(!recording || !rctx || !bmp) return;
+  if(recCanvas.width !== bw || recCanvas.height !== bh){ recCanvas.width = bw; recCanvas.height = bh; }
+  drawBmp(rctx, 0, 0, bw, bh);
+}
+function startRec(){
+  if(!bmp){ toast('لا يوجد بث للتسجيل'); return; }
+  if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){ toast('هذا المتصفح لا يدعم التسجيل، جرّب Chrome'); return; }
+  recCanvas = document.createElement('canvas');
+  recCanvas.width = bw; recCanvas.height = bh;
+  rctx = recCanvas.getContext('2d'); drawBmp(rctx, 0, 0, bw, bh);
+  var stream = recCanvas.captureStream(25);
+  try{
+    ensureCtx();
+    if(!recDest){ recDest = actx.createMediaStreamDestination(); tap.connect(recDest); }
+    recDest.stream.getAudioTracks().forEach(function(t){ stream.addTrack(t); });
+  }catch(e){}
+  var types = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  var mt = ''; for(var i=0;i<types.length;i++){ if(MediaRecorder.isTypeSupported(types[i])){ mt = types[i]; break; } }
+  var opts = {videoBitsPerSecond: Math.min(12000000, Math.max(2000000, bw*bh*3))};
+  if(mt) opts.mimeType = mt;
+  try{ rec = new MediaRecorder(stream, opts); }catch(e){ try{ rec = new MediaRecorder(stream); }catch(e2){ toast('تعذر بدء التسجيل'); return; } }
+  recChunks = [];
+  rec.ondataavailable = function(ev){ if(ev.data && ev.data.size) recChunks.push(ev.data); };
+  rec.onstop = function(){
+    var type = rec.mimeType || 'video/webm';
+    var blob = new Blob(recChunks, {type:type});
+    download(blob, 'camstream-' + stamp() + (type.indexOf('mp4') >= 0 ? '.mp4' : '.webm'));
+    recChunks = []; toast('تم حفظ التسجيل في جهازك');
+  };
+  rec.start(1000);
+  recording = true; recT0 = Date.now(); wantAudio();
+  $('bRec').classList.add('rec');
+  recTimer = setInterval(function(){
+    var s = Math.floor((Date.now()-recT0)/1000), p = function(n){ return (n<10?'0':'') + n; };
+    $('bRec').innerHTML = '&#9209;<span>' + p(Math.floor(s/60)) + ':' + p(s%60) + '</span>';
+  }, 500);
+}
+function stopRec(){
+  recording = false; clearInterval(recTimer);
+  try{ rec.stop(); }catch(e){}
+  $('bRec').classList.remove('rec'); $('bRec').innerHTML = '&#9210;<span>تسجيل</span>';
+  wantAudio();
+}
+$('bRec').onclick = function(){ if(recording) stopRec(); else startRec(); };
+window.addEventListener('beforeunload', function(e){ if(recording){ e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- الاستوديو: سجل مؤقت يُعاد تشغيله (DVR) ----------
+   يعمل بتقسيم البث إلى مقاطع صغيرة كاملة، كل مقطع ملف فيديو صحيح ومستقل بذاته
+   (تُغلق عملية تسجيله بشكل نظامي)، فتُصبح إعادة التشغيل والتقديم والتراجع داخل
+   كل مقطع موثوقة كأي مشغل فيديو عادي، وتُسلسل المقاطع تلقائياً عند التشغيل.
+   كل هذا في ذاكرة هذا المتصفح فقط، ويُحذف عند إغلاق الصفحة أو تحديثها.
+   إيقاف افتراضي: لا يعمل شيء في الخلفية إلا بعد أن يفعّله المشاهد بنفسه من
+   إعدادات الاستوديو، ويختار هو مدة السجل. مبني على "بث فيديو واحد دائم" من
+   الكانفاس (يُنشأ مرة واحدة فقط) بدل إعادة إنشائه كل مقطع، لتجنّب تراكم
+   عمليات/ذاكرة في الخلفية قد تُبطئ الصفحة مع الوقت. */
+var SEG_LEN = 15;                                  // ثانية لكل مقطع
+var dvrOn = false, dvrMinutes = 5;
+var dvrCapacity = Math.ceil(dvrMinutes * 60 / SEG_LEN);
+var dvrCanvas = null, dvrCtx = null, dvrStream = null, dvrRec = null, dvrSegs = [];
+var dvrRotateTimer = null, dvrStarting = false, dvrMime = '', dvrUnsupported = false;
+
+function ensureRecDest(){
+  ensureCtx();
+  if(!recDest){ recDest = actx.createMediaStreamDestination(); tap.connect(recDest); }
+}
+
+function dvrFrame(){
+  if(!dvrOn || !bmp) return;
+  if(!dvrCanvas){ dvrCanvas = document.createElement('canvas'); dvrCtx = dvrCanvas.getContext('2d'); }
+  var maxW = 640, w = bw, h = bh;
+  if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+  if(dvrCanvas.width !== w || dvrCanvas.height !== h){ dvrCanvas.width = w; dvrCanvas.height = h; }
+  drawBmp(dvrCtx, 0, 0, w, h);
+  if(!dvrRec && !dvrStarting && !dvrUnsupported) startDvrSegment();
+}
+
+function pickDvrMime(){
+  var types = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
+  for(var i=0;i<types.length;i++){ if(MediaRecorder.isTypeSupported(types[i])) return types[i]; }
+  return '';
+}
+
+function trimSegs(segs, capacity){
+  if(segs.length <= capacity) return segs;
+  return segs.slice(segs.length - capacity);
+}
+
+/* بث كانفاس واحد دائم يُستخدم لكل المقاطع بدل استدعاء captureStream() في كل مرة
+   (استدعاؤها المتكرر كان يترك مسارات/بثوثاً قديمة بلا إيقاف فتتراكم وتُبطئ الصفحة). */
+function ensureDvrStream(){
+  if(dvrStream) return dvrStream;
+  if(!dvrCanvas){
+    dvrCanvas = document.createElement('canvas');
+    dvrCanvas.width = 16; dvrCanvas.height = 9;
+    dvrCtx = dvrCanvas.getContext('2d');
+  }
+  dvrStream = dvrCanvas.captureStream(8);
+  try{
+    ensureRecDest();
+    recDest.stream.getAudioTracks().forEach(function(t){ dvrStream.addTrack(t); });
+  }catch(e){}
+  return dvrStream;
+}
+
+function startDvrSegment(){
+  if(!dvrOn || dvrStarting || dvrUnsupported) return;
+  if(!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream){ dvrUnsupported = true; dvrOn = false; return; }
+  dvrStarting = true;
+  var stream = ensureDvrStream();
+  if(!dvrMime) dvrMime = pickDvrMime();
+  var opts = {videoBitsPerSecond: 700000};
+  if(dvrMime) opts.mimeType = dvrMime;
+  var r;
+  try{ r = new MediaRecorder(stream, opts); }
+  catch(e){ try{ r = new MediaRecorder(stream); }catch(e2){ dvrUnsupported = true; dvrOn = false; dvrStarting = false; return; } }
+  var chunks = [], segStart = Date.now();
+  r.ondataavailable = function(ev){ if(ev.data && ev.data.size) chunks.push(ev.data); };
+  r.onstop = function(){
+    if(chunks.length){
+      var blob = new Blob(chunks, {type: r.mimeType || dvrMime || 'video/webm'});
+      dvrSegs.push({blob: blob, t: segStart});
+      dvrSegs = trimSegs(dvrSegs, dvrCapacity);
+      updateAvailLabel();
+    }
+    if(dvrOn) startDvrSegment(); else dvrRec = null;
+  };
+  dvrRec = r;
+  try{ r.start(); }catch(e){ dvrUnsupported = true; dvrOn = false; dvrStarting = false; return; }
+  dvrStarting = false;
+  clearTimeout(dvrRotateTimer);
+  dvrRotateTimer = setTimeout(function(){ try{ if(dvrRec === r) r.stop(); }catch(e){} }, SEG_LEN * 1000);
+}
+
+function stopDvr(clear){
+  dvrOn = false;
+  clearTimeout(dvrRotateTimer);
+  if(dvrRec){ try{ dvrRec.stop(); }catch(e){} dvrRec = null; }
+  if(clear){ dvrSegs = []; updateAvailLabel(); }
+}
+function startDvr(){
+  if(dvrOn) return;
+  dvrOn = true;
+  wantAudio();
+  if(bmp) startDvrSegment();
+}
+function updateAvailLabel(){
+  var el = $('stAvail');
+  if(el) el.textContent = 'المتاح: ' + fmtClock(dvrSegs.length * SEG_LEN);
+}
+function fmtClock(totalSec){
+  var s = Math.max(0, Math.round(totalSec));
+  var m = Math.floor(s / 60), r = s % 60;
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+function segIndexForOffset(segCount, offsetSec, segLen){
+  if(segCount <= 0) return -1;
+  var back = Math.floor(offsetSec / segLen);
+  var idx = segCount - 1 - back;
+  if(idx < 0) idx = 0;
+  if(idx > segCount - 1) idx = segCount - 1;
+  return idx;
+}
+
+/* ---------- تشغيل الاستوديو ---------- */
+var stEl = null, stPlayingIdx = -1, stDragging = false;
+
+function stCurrentOffset(){
+  if(stPlayingIdx < 0 || !dvrSegs.length) return 0;
+  var segsFromLive = (dvrSegs.length - 1) - stPlayingIdx;
+  var cur = (stEl && !isNaN(stEl.currentTime)) ? stEl.currentTime : 0;
+  return clamp(segsFromLive * SEG_LEN + (SEG_LEN - cur), 0, dvrSegs.length * SEG_LEN);
+}
+function stUpdateBar(){
+  var total = dvrSegs.length * SEG_LEN;
+  var offset = stCurrentOffset();
+  var frac = total > 0 ? clamp(1 - offset / total, 0, 1) : 0;
+  $('stPlayed').style.width = (frac * 100) + '%';
+  $('stHandle').style.left = (frac * 100) + '%';
+  $('stTimeLbl').textContent = offset < 1 ? 'مباشر' : '-' + fmtClock(offset);
+}
+function stLoad(idx){
+  if(!stEl || idx < 0 || idx >= dvrSegs.length) return;
+  stPlayingIdx = idx;
+  var seg = dvrSegs[idx];
+  var prevUrl = stEl.dataset.url;
+  var url = URL.createObjectURL(seg.blob);
+  stEl.dataset.url = url;
+  stEl.src = url;
+  stEl.play().catch(function(){});
+  if(prevUrl){ setTimeout(function(){ try{ URL.revokeObjectURL(prevUrl); }catch(e){} }, 4000); }
+  $('stEmpty').style.display = 'none';
+  stUpdateBar();
+}
+function stGoto(offsetSec){
+  if(!dvrSegs.length) return;
+  var total = dvrSegs.length * SEG_LEN;
+  offsetSec = clamp(offsetSec, 0, Math.max(0, total - 0.1));
+  var idx = segIndexForOffset(dvrSegs.length, offsetSec, SEG_LEN);
+  if(idx !== stPlayingIdx) stLoad(idx);
+}
+function stOnEnded(){
+  if(stPlayingIdx >= 0 && stPlayingIdx < dvrSegs.length - 1){
+    stLoad(stPlayingIdx + 1);
+  }else{
+    toast('وصلت لنهاية السجل — عدت للبث المباشر');
+    stClose();
+  }
+}
+function stOpen(){
+  $('studio').classList.add('open');
+  $('panel').classList.remove('open'); $('bAdm').classList.remove('on');
+  $('stWinLbl').textContent = dvrMinutes;
+  updateAvailLabel();
+  if(dvrSegs.length) stGoto(0);
+  else $('stEmpty').style.display = 'flex';
+}
+function stClose(){
+  $('studio').classList.remove('open');
+  if(stEl){ try{ stEl.pause(); }catch(e){} }
+  if(document.pictureInPictureElement){ try{ document.exitPictureInPicture(); }catch(e){} }
+}
+function stSetup(){
+  stEl = $('stVideo');
+  stEl.addEventListener('ended', stOnEnded);
+  stEl.addEventListener('timeupdate', stUpdateBar);
+  stEl.addEventListener('play', function(){ $('stPlay').innerHTML = '&#10074;&#10074;'; });
+  stEl.addEventListener('pause', function(){ $('stPlay').innerHTML = '&#9654;'; });
+
+  $('bStudio').onclick = stOpen;
+  $('stClose').onclick = stClose;
+  $('stPlay').onclick = function(){
+    if(!stEl.src) return;
+    if(stEl.paused) stEl.play().catch(function(){}); else stEl.pause();
+  };
+  $('stBack').onclick = function(){ stGoto(stCurrentOffset() + 10); };
+  $('stFwd').onclick = function(){ stGoto(Math.max(0, stCurrentOffset() - 10)); };
+  $('stLiveBtn').onclick = function(){ stGoto(0); };
+  $('stSpeed').onchange = function(){ stEl.playbackRate = parseFloat(this.value); };
+  $('stVol').oninput = function(){ stEl.volume = parseFloat(this.value); };
+  $('stMute').onclick = function(){
+    stEl.muted = !stEl.muted;
+    this.classList.toggle('on', stEl.muted);
+    this.innerHTML = stEl.muted ? '&#128263;' : '&#128266;';
+  };
+  $('stDl').onclick = function(){
+    if(stPlayingIdx < 0) return;
+    var seg = dvrSegs[stPlayingIdx];
+    var ext = (seg.blob.type || '').indexOf('mp4') >= 0 ? '.mp4' : '.webm';
+    download(seg.blob, 'camstream-clip-' + stamp() + ext);
+    toast('تم حفظ مقطع (' + SEG_LEN + ' ثوانٍ) في جهازك');
+  };
+  $('stPip').onclick = function(){
+    if(document.pictureInPictureElement){ document.exitPictureInPicture().catch(function(){}); }
+    else if(stEl.requestPictureInPicture){ stEl.requestPictureInPicture().catch(function(){ toast('الوضع العائم غير مدعوم هنا'); }); }
+    else toast('الوضع العائم غير مدعوم في هذا المتصفح');
+  };
+  $('stFs').onclick = function(){
+    var el = $('studio');
+    if(document.fullscreenElement){ document.exitFullscreen(); }
+    else if(el.requestFullscreen){ el.requestFullscreen(); }
+    else toast('المتصفح لا يدعم ملء الشاشة');
+  };
+  $('stDvrOn').onclick = function(){
+    if(this.checked) startDvr(); else stopDvr(false);
+  };
+  $('stDvrMin').onchange = function(){
+    dvrMinutes = parseFloat(this.value);
+    dvrCapacity = Math.ceil(dvrMinutes * 60 / SEG_LEN);
+    dvrSegs = trimSegs(dvrSegs, dvrCapacity);
+    $('stWinLbl').textContent = this.value;
+    updateAvailLabel();
+  };
+
+  var stBarEl = $('stBar');
+  function seekFromEvent(e){
+    var rect = stBarEl.getBoundingClientRect();
+    var cx2 = (e.touches ? e.touches[0].clientX : e.clientX);
+    var frac = clamp((cx2 - rect.left) / rect.width, 0, 1);
+    var total = dvrSegs.length * SEG_LEN;
+    stGoto((1 - frac) * total);
+  }
+  var seekThrottled = throttle(seekFromEvent, 150);
+  stBarEl.addEventListener('pointerdown', function(e){
+    if(!dvrSegs.length) return;
+    stDragging = true;
+    try{ stBarEl.setPointerCapture(e.pointerId); }catch(x){}
+    seekFromEvent(e);
+  });
+  stBarEl.addEventListener('pointermove', function(e){ if(stDragging) seekThrottled(e); });
+  stBarEl.addEventListener('pointerup', function(e){ if(stDragging){ stDragging = false; seekFromEvent(e); } });
+  stBarEl.addEventListener('pointercancel', function(){ stDragging = false; });
+}
+
+$('bShot').onclick = function(){
+  if(!bmp){ toast('لا توجد صورة'); return; }
+  var c = document.createElement('canvas'); c.width = bw; c.height = bh;
+  drawBmp(c.getContext('2d'), 0, 0, bw, bh);
+  c.toBlob(function(b){ if(b){ download(b, 'camstream-' + stamp() + '.jpg'); toast('تم حفظ اللقطة'); } }, 'image/jpeg', 0.95);
+};
+
+/* ---------- لوحة التحكم (للمشرف فقط) ---------- */
+function api(cmd, params){
+  return fetch('/api/' + cmd + qs(params || 't=1'), {cache:'no-store'}).then(function(){ setTimeout(poll, 250); }).catch(function(){});
+}
+function throttle(fn, ms){
+  var t = 0, tm = null, lastArgs = null;
+  return function(){
+    lastArgs = arguments; var now = Date.now();
+    if(now - t >= ms){ t = now; fn.apply(null, lastArgs); }
+    else{ clearTimeout(tm); tm = setTimeout(function(){ t = Date.now(); fn.apply(null, lastArgs); }, ms - (now - t)); }
+  };
+}
+$('bAdm').onclick = function(){ $('panel').classList.toggle('open'); this.classList.toggle('on'); };
+cv.addEventListener('pointerdown', function(){ $('panel').classList.remove('open'); $('bAdm').classList.remove('on'); });
+
+var camKey = '', presetKey = '', qKey = '', zDrag = false, fDrag = false;
+function updateAdmin(j){
+  var ck = (j.cameras || []).join('|');
+  if(ck !== camKey){
+    camKey = ck;
+    var s = $('selCam'); s.innerHTML = '';
+    (j.cameras || []).forEach(function(n,i){ var o = document.createElement('option'); o.value = i; o.textContent = n; s.appendChild(o); });
+  }
+  $('selCam').value = j.camIndex;
+
+  var qk = (j.qualities || []).join('|');
+  if(qk !== qKey){
+    qKey = qk;
+    var sq = $('selQ'); sq.innerHTML = '';
+    (j.qualities || []).forEach(function(n,i){ var o = document.createElement('option'); o.value = i; o.textContent = n; sq.appendChild(o); });
+  }
+  $('selQ').value = j.quality;
+
+  var tb = $('bTorch');
+  tb.disabled = !j.hasFlash;
+  tb.classList.toggle('on', !!j.torch);
+  tb.innerHTML = j.hasFlash ? ('&#128294; ' + (j.torch ? 'إطفاء الفلاش' : 'تشغيل الفلاش')) : '&#128294; لا يوجد فلاش في هذه الكاميرا';
+
+  var zmin = j.zoomMin, zmax = j.zoomMax;
+  var pk = zmin + '|' + zmax;
+  if(pk !== presetKey){
+    presetKey = pk;
+    var sl = $('camZoom'); sl.min = zmin; sl.max = zmax;
+    var box = $('presets'); box.innerHTML = '';
+    [0.5,0.6,1,2,3,5,10].forEach(function(z){
+      if(z >= zmin - 0.01 && z <= zmax + 0.01){
+        var b = document.createElement('button');
+        b.className = 'chip'; b.dataset.z = z; b.textContent = z + 'x' + (z < 1 ? ' (واسعة)' : '');
+        b.onclick = function(){ api('zoom', 'r=' + z); };
+        box.appendChild(b);
+      }
+    });
+  }
+  if(!zDrag) $('camZoom').value = j.zoomCur;
+  $('camZoomTxt').textContent = (+j.zoomCur).toFixed(1) + 'x';
+  Array.prototype.forEach.call($('presets').children, function(b){
+    b.classList.toggle('on', Math.abs(parseFloat(b.dataset.z) - j.zoomCur) < 0.12);
+  });
+
+  var canMan = j.minFocus > 0;
+  $('fMan').disabled = !canMan;
+  $('fAuto').classList.toggle('on', !j.focusManual);
+  $('fMan').classList.toggle('on', !!j.focusManual);
+  $('fDist').disabled = !j.focusManual;
+  if(!fDrag) $('fDist').value = j.focusVal;
+
+  $('vlist').textContent = (j.viewerIps && j.viewerIps.length) ? j.viewerIps.join(' ، ') : 'لا أحد';
+}
+$('selCam').onchange = function(){ api('camera', 'i=' + this.value); };
+$('selQ').onchange = function(){ api('quality', 'i=' + this.value); toast('تغيير الجودة قد يقطع البث لحظات'); };
+$('bTorch').onclick = function(){ api('torch', 'on=' + (status.torch ? 0 : 1)); };
+var sendZoom = throttle(function(v){ api('zoom', 'r=' + v); }, 120);
+$('camZoom').addEventListener('input', function(){ zDrag = true; sendZoom(this.value); });
+$('camZoom').addEventListener('change', function(){ zDrag = false; });
+$('fAuto').onclick = function(){ api('focusmode', 'm=auto'); };
+$('fMan').onclick = function(){ api('focusmode', 'm=manual'); };
+var sendFocus = throttle(function(v){ api('focusdist', 'v=' + v); }, 120);
+$('fDist').addEventListener('input', function(){ fDrag = true; sendFocus(this.value); });
+$('fDist').addEventListener('change', function(){ fDrag = false; });
+$('fTap').onclick = function(){
+  tapFocus = !tapFocus; this.classList.toggle('on', tapFocus);
+  if(tapFocus){ $('panel').classList.remove('open'); $('bAdm').classList.remove('on'); toast('اضغط على أي مكان في الصورة لضبط الفوكس'); }
+};
+function doFocus(px,py){
+  var p = toImg(px,py);
+  if(p.u < 0 || p.u > 1 || p.v < 0 || p.v > 1) return;
+  var r = $('ring'); r.style.left = px + 'px'; r.style.top = py + 'px';
+  r.classList.remove('go'); void r.offsetWidth; r.classList.add('go');
+  api('focus', 'x=' + p.u.toFixed(4) + '&y=' + p.v.toFixed(4));
+}
+
+/* ---------- التحدث مع من أمام الكاميرا ---------- */
+var ws = null, micStream = null, micCtx = null, proc = null, talking = false;
+function setTalkUi(on){
+  talking = on;
+  var b = $('bTalk'); b.classList.toggle('on', on);
+  b.innerHTML = '&#127908; ' + (on ? 'إيقاف التحدث (المايك يعمل)' : 'ابدأ التحدث');
+}
+function stopTalk(){
+  if(proc){ try{ proc.disconnect(); }catch(e){} proc = null; }
+  if(micCtx){ try{ micCtx.close(); }catch(e){} micCtx = null; }
+  if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream = null; }
+  if(ws){ try{ ws.close(); }catch(e){} ws = null; }
+  setTalkUi(false);
+}
+async function startTalk(){
+  if(!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    var u = 'https://' + location.hostname + ':' + (status.tlsPort || 3421) + '/' + q;
+    if(status.tls){
+      if(confirm('المتصفح يمنع المايك على رابط http. هل تريد فتح الرابط الآمن (https)؟\nسيظهر تحذير شهادة: اختر "متابعة/متقدم" ثم أعد الضغط على التحدث.')) location.href = u;
+    }else{
+      toast('الرابط الآمن غير متاح على هذا الهاتف');
+    }
+    return;
+  }
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, channelCount:1}});
+  }catch(e){ toast('لم يتم السماح باستخدام المايك'); return; }
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/talk' + q);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = function(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    micCtx = new AC();
+    var src = micCtx.createMediaStreamSource(micStream);
+    proc = micCtx.createScriptProcessor(2048, 1, 1);
+    var ratio = micCtx.sampleRate / 16000;
+    proc.onaudioprocess = function(ev){
+      if(!ws || ws.readyState !== 1) return;
+      var inp = ev.inputBuffer.getChannelData(0);
+      var n = Math.floor(inp.length / ratio), out = new Int16Array(n);
+      for(var i=0;i<n;i++){
+        var a = Math.floor(i*ratio), b = Math.min(inp.length, Math.floor((i+1)*ratio)), sum = 0, c = 0;
+        for(var j=a;j<b;j++){ sum += inp[j]; c++; }
+        var s = c ? sum/c : 0; s = clamp(s, -1, 1);
+        out[i] = s < 0 ? s*32768 : s*32767;
+      }
+      ws.send(out.buffer);
+    };
+    src.connect(proc); proc.connect(micCtx.destination);
+    setTalkUi(true);
+  };
+  ws.onclose = stopTalk; ws.onerror = stopTalk;
+}
+$('bTalk').onclick = function(){ if(talking) stopTalk(); else startTalk(); };
+
+stSetup();
+
+})();
+</script>
+</body>
+</html>
